@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<!-- saved from url=(0040)file:///C:/Users/DELL/Desktop/html1.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+    <title>CPU Scheduling Calculator</title>
+    <link rel="stylesheet" href="./kapil cpu sheduling calculator_files/styles.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f1f5f3; /* Changed background color */
+            color: #ebdcdc;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .calculator {
+            background-color: #07a88d;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(221, 214, 214, 0.1);
+            padding: 20px;
+            max-width: 400px;
+            margin: auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #2c3e50;
+            text-align: center;
+            margin: 0 0 20px; /* Adjusted margin */
+            padding: 10px 0; /* Added padding */
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+            color: #34495e;
+        }
+
+        select, input[type="number"], input[type="text"], button {
+            width: 100%;
+            height: 40px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border: 1px solid #bdc3c7;
+            padding: 0 10px;
+            font-size: 16px;
+        }
+
+        select:focus, input:focus, button:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .gantt-chart {
+            display: flex;
+            justify-content: flex-start;
+            margin-top: 20px;
+        }
+
+        .gantt-bar {
+            border: 1px solid #2980b9;
+            padding: 10px;
+            margin-right: 5px;
+            background-color: #add8e6; /* Light blue background */
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        /* Updated filled colors for different scheduling algorithms */
+        .gantt-bar.fcfs {
+            background-color: #8e44ad; /* Purple for FCFS */
+        }
+
+        .gantt-bar.sjf {
+            background-color: #e67e22; /* Orange for SJF */
+        }
+
+        .gantt-bar.srtf {
+            background-color: #2ecc71; /* Green for SRTF */
+        }
+
+        .gantt-bar.priority {
+            background-color: #c0392b; /* Red for Priority */
+        }
+
+        .gantt-bar.rr {
+            background-color: #f1c40f; /* Yellow for Round Robin */
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <h1>CPU Scheduling Calculator</h1>
+        <form id="scheduler-form">
+            <label for="algorithm">Algorithm:</label>
+            <select id="algorithm">
+                <option value="fcfs">FCFS (First-Come-First-Served)</option>
+                <option value="sjf">SJF (Shortest Job First)</option>
+                <option value="srtf">SRTF (Shortest Remaining Time First)</option>
+                <option value="priority">Priority Scheduling (Non-Preemptive)</option>
+                <option value="rr">Round Robin</option>
+            </select>
+
+            <label for="processes">Number of Processes:</label>
+            <input type="number" id="processes" min="1" max="7" value="1">
+
+            <label for="arrival-time" id="arrival-time-label">Arrival Time :</label>
+            <input type="text" id="arrival-time" placeholder="e.g., 0, 1, 2">
+
+            <label for="burst-time" id="burst-time-label">Burst Time :</label>
+            <input type="text" id="burst-time" placeholder="e.g., 5, 3, 8">
+
+            <label for="time-quantum" id="time-quantum-label" class="hidden">Time Quantum (for RR):</label>
+            <input type="number" id="time-quantum" placeholder="2" class="hidden">
+
+            <label for="priority" id="priority-label" class="hidden">Priority :</label>
+            <input type="text" id="priority" placeholder="e.g., 1, 2, 3" class="hidden">
+
+            <button type="button" id="solve">Solve</button>
+        </form>
+        <div id="result">
+            <div id="chart" class="gantt-chart"></div>
+        </div>
+    </div>
+
+    <script>
+        const algorithmSelect = document.getElementById('algorithm');
+        const timeQuantumLabel = document.getElementById('time-quantum-label');
+        const timeQuantumInput = document.getElementById('time-quantum');
+        const priorityLabel = document.getElementById('priority-label');
+        const priorityInput = document.getElementById('priority');
+        const solveButton = document.getElementById('solve');
+        const chartContainer = document.getElementById('chart');
+
+        function toggleFields() {
+            const selectedAlgorithm = algorithmSelect.value;
+
+            if (selectedAlgorithm === 'rr') {
+                timeQuantumLabel.classList.remove('hidden');
+                timeQuantumInput.classList.remove('hidden');
+                priorityLabel.classList.add('hidden');
+                priorityInput.classList.add('hidden');
+            } else if (selectedAlgorithm === 'priority') {
+                priorityLabel.classList.remove('hidden');
+                priorityInput.classList.remove('hidden');
+                timeQuantumLabel.classList.add('hidden');
+                timeQuantumInput.classList.add('hidden');
+            } else {
+                timeQuantumLabel.classList.add('hidden');
+                timeQuantumInput.classList.add('hidden');
+                priorityLabel.classList.add('hidden');
+                priorityInput.classList.add('hidden');
+            }
+        }
+
+        function generateGanttChart(processes, burstTimes, algorithm) {
+            chartContainer.innerHTML = ''; 
+            for (let i = 0; i < processes.length; i++) {
+                const bar = document.createElement('div');
+                bar.classList.add('gantt-bar', algorithm); // Add algorithm-specific class
+                bar.style.width = (burstTimes[i] * 30) + 'px'; 
+                bar.innerHTML = `P${processes[i]} (${burstTimes[i]} units)`;
+                chartContainer.appendChild(bar);
+            }
+        }
+
+        function solveFCFS() {
+            const arrivalTimes = document.getElementById('arrival-time').value.split(',').map(Number);
+            const burstTimes = document.getElementById('burst-time').value.split(',').map(Number);
+
+            const n = arrivalTimes.length;
+            let processOrder = Array.from({length: n}, (_, i) => i); 
+
+            processOrder.sort((a, b) => arrivalTimes[a] - arrivalTimes[b]);
+
+            const sortedBurstTimes = processOrder.map(i => burstTimes[i]);
+
+            generateGanttChart(processOrder.map(i => i + 1), sortedBurstTimes, 'fcfs');
+        }
+
+        function solveSJF() {
+            const arrivalTimes = document.getElementById('arrival-time').value.split(',').map(Number);
+            const burstTimes = document.getElementById('burst-time').value.split(',').map(Number);
+
+            let time = 0;
+            let completedProcesses = 0;
+            const n = burstTimes.length;
+            let isComplete = Array(n).fill(false);
+            let ganttChart = [];
+
+            while (completedProcesses < n) {
+                let shortest = -1;
+                let minBurst = Infinity;
+
+                for (let i = 0; i < n; i++) {
+                    if (!isComplete[i] && arrivalTimes[i] <= time && burstTimes[i] < minBurst) {
+                        shortest = i;
+                        minBurst = burstTimes[i];
+                    }
+                }
+
+                if (shortest === -1) {
+                    time++;
+                    continue;
+                }
+
+                time += burstTimes[shortest];
+                ganttChart.push(shortest);
+                isComplete[shortest] = true;
+                completedProcesses++;
+            }
+
+            generateGanttChart(ganttChart.map(i => i + 1), ganttChart.map(i => burstTimes[i]), 'sjf');
+        }
+
+        function solvePriority() {
+            const arrivalTimes = document.getElementById('arrival-time').value.split(',').map(Number);
+            const burstTimes = document.getElementById('burst-time').value.split(',').map(Number);
+            const priorities = document.getElementById('priority').value.split(',').map(Number);
+
+            const n = arrivalTimes.length;
+            let processOrder = Array.from({length: n}, (_, i) => i);
+
+            processOrder.sort((a, b) => {
+                if (arrivalTimes[a] === arrivalTimes[b]) {
+                    return priorities[a] - priorities[b];
+                }
+                return arrivalTimes[a] - arrivalTimes[b];
+            });
+
+            const sortedBurstTimes = processOrder.map(i => burstTimes[i]);
+
+            generateGanttChart(processOrder.map(i => i + 1), sortedBurstTimes, 'priority');
+        }
+
+        function solveSRTF() {
+            const arrivalTimes = document.getElementById('arrival-time').value.split(',').map(Number);
+            const burstTimes = document.getElementById('burst-time').value.split(',').map(Number);
+            const remainingBurstTimes = [...burstTimes];
+
+            let time = 0;
+            const n = burstTimes.length;
+            let completedProcesses = 0;
+            let ganttChart = [];
+            const isComplete = Array(n).fill(false);
+
+            while (completedProcesses < n) {
+                let shortest = -1;
+                let minBurst = Infinity;
+
+                for (let i = 0; i < n; i++) {
+                    if (!isComplete[i] && remainingBurstTimes[i] > 0 && arrivalTimes[i] <= time && remainingBurstTimes[i] < minBurst) {
+                        shortest = i;
+                        minBurst = remainingBurstTimes[i];
+                    }
+                }
+
+                if (shortest === -1) {
+                    time++;
+                    continue;
+                }
+
+                ganttChart.push(shortest);
+                remainingBurstTimes[shortest]--;
+                if (remainingBurstTimes[shortest] === 0) {
+                    isComplete[shortest] = true;
+                    completedProcesses++;
+                }
+                time++;
+            }
+
+            generateGanttChart(ganttChart.map(i => i + 1), ganttChart.map(i => burstTimes[i]), 'srtf');
+        }
+
+        function solveRR() {
+            const arrivalTimes = document.getElementById('arrival-time').value.split(',').map(Number);
+            const burstTimes = document.getElementById('burst-time').value.split(',').map(Number);
+            const timeQuantum = parseInt(timeQuantumInput.value, 10);
+            const n = burstTimes.length;
+            const remainingBurstTimes = [...burstTimes];
+            let ganttChart = [];
+            const queue = [];
+            let time = 0;
+            let completedProcesses = 0;
+
+            while (completedProcesses < n) {
+                for (let i = 0; i < n; i++) {
+                    if (arrivalTimes[i] <= time && remainingBurstTimes[i] > 0) {
+                        queue.push(i);
+                    }
+                }
+
+                if (queue.length > 0) {
+                    const current = queue.shift();
+                    const timeSlice = Math.min(remainingBurstTimes[current], timeQuantum);
+                    ganttChart.push(current);
+                    remainingBurstTimes[current] -= timeSlice;
+                    time += timeSlice;
+
+                    if (remainingBurstTimes[current] === 0) {
+                        completedProcesses++;
+                    } else {
+                        queue.push(current);
+                    }
+                } else {
+                    time++;
+                }
+            }
+
+            generateGanttChart(ganttChart.map(i => i + 1), ganttChart.map(i => burstTimes[i]), 'rr');
+        }
+
+        solveButton.addEventListener('click', () => {
+            const selectedAlgorithm = algorithmSelect.value;
+
+            switch (selectedAlgorithm) {
+                case 'fcfs':
+                    solveFCFS();
+                    break;
+                case 'sjf':
+                    solveSJF();
+                    break;
+                case 'srtf':
+                    solveSRTF();
+                    break;
+                case 'priority':
+                    solvePriority();
+                    break;
+                case 'rr':
+                    solveRR();
+                    break;
+            }
+        });
+
+        algorithmSelect.addEventListener('change', toggleFields);
+        toggleFields(); // Initialize visibility of fields
+    </script>
+
+
+</body></html>
